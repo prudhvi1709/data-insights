@@ -399,15 +399,108 @@ const addMessage = (sender, content) => {
       content
     )}</div>`;
   } else {
-    div.className = "alert alert-light border me-5 mb-3";
-    div.innerHTML = `<div class="fw-semibold mb-2 small text-uppercase text-muted">ANALYSIS</div><div class="message-content">${marked.parse(
-      content
-    )}</div>`;
+    div.className = "alert alert-light border me-5 mb-3 position-relative";
+    const copyButtonId = `copy-btn-${Date.now()}`;
+    div.innerHTML = `
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="fw-semibold small text-uppercase text-muted">ANALYSIS</div>
+        <button class="btn btn-outline-secondary btn-sm copy-btn" id="${copyButtonId}" title="Copy response">
+          <i class="bi bi-clipboard"></i>
+        </button>
+      </div>
+      <div class="message-content">${marked.parse(content)}</div>`;
+    
+    // Add copy functionality
+    setTimeout(() => {
+      const copyBtn = document.getElementById(copyButtonId);
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          const messageContent = div.querySelector('.message-content');
+          copyToClipboard(messageContent, copyBtn);
+        });
+      }
+    }, 0);
   }
 
   container.querySelector(".card-body").appendChild(div);
   container.scrollTop = container.scrollHeight;
   return div;
+};
+
+const copyToClipboard = async (contentElement, button) => {
+  let textToCopy = '';
+  
+  // Extract text content from the DOM element
+  if (contentElement && contentElement.textContent) {
+    textToCopy = contentElement.textContent.trim();
+  } else {
+    console.error('No content element found to copy');
+    showCopyError(button);
+    return;
+  }
+  
+  // Try modern clipboard API first
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      showCopySuccess(button);
+      return;
+    } catch (err) {
+      console.warn('Clipboard API failed, trying fallback method:', err);
+    }
+  }
+  
+  // Fallback method using document.execCommand (deprecated but still works)
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = textToCopy;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    
+    if (successful) {
+      showCopySuccess(button);
+    } else {
+      throw new Error('execCommand copy failed');
+    }
+  } catch (err) {
+    console.error('All copy methods failed:', err);
+    showCopyError(button);
+  }
+};
+
+const showCopySuccess = (button) => {
+  const originalHTML = button.innerHTML;
+  const originalClasses = button.className;
+  
+  button.innerHTML = '<i class="bi bi-check-lg text-success"></i>';
+  button.classList.add('btn-outline-success');
+  button.classList.remove('btn-outline-secondary');
+  
+  setTimeout(() => {
+    button.innerHTML = originalHTML;
+    button.className = originalClasses;
+  }, 2000);
+};
+
+const showCopyError = (button) => {
+  const originalHTML = button.innerHTML;
+  const originalClasses = button.className;
+  
+  button.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i>';
+  button.classList.add('btn-outline-danger');
+  button.classList.remove('btn-outline-secondary');
+  
+  setTimeout(() => {
+    button.innerHTML = originalHTML;
+    button.className = originalClasses;
+  }, 2000);
 };
 
 const showLoading = (show) => {
@@ -447,9 +540,10 @@ const generateConfigInstructions = (config) => {
       instructions += "- Provide concise summary format\n";
       instructions += "- Focus on key points and main insights\n";
       break;
-    case "Report":
-      instructions += "- Use detailed report format with clear sections\n";
-      instructions += "- Include comprehensive analysis and background\n";
+    case "e-mail":
+      instructions += "- Format as a professional e-mail\n";
+      instructions += "- Include appropriate subject line, greeting, and closing\n";
+      instructions += "- Use clear sections and professional tone suitable for email communication\n";
       break;
     case "Bullet Points":
       instructions += "- Present information in clear bullet point format\n";
