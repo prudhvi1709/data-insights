@@ -57,8 +57,26 @@ const extractTextFromPdf = async (url) => {
 
 const extractTextFromExcel = async (url) => {
   const response = await fetch(url);
+  
+  // Check if we got a valid response
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url}: ${response.status}`);
+  }
+  
+  // Check content type to ensure it's not HTML
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('text/html')) {
+    throw new Error(`Expected Excel file but got HTML content for ${url}`);
+  }
+  
   const arrayBuffer = await response.arrayBuffer();
-  const workbook = XLSX.read(arrayBuffer, { type: "array" });
+  
+  // Check if the arrayBuffer has content
+  if (arrayBuffer.byteLength === 0) {
+    throw new Error(`Empty file: ${url}`);
+  }
+  
+  const workbook = XLSX.read(arrayBuffer, { type: "buffer" });
 
   let fullText = "";
 
